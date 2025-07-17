@@ -48,7 +48,8 @@ Focus on peptides that can interact with the identified surface-exposed residues
             # Select peptides based on surface residue properties
             if i < len(surface_df):
                 surface_residue = surface_df.iloc[i]
-                pep_seq = sequence[max(0, surface_residue['Residue Number'] - 4):min(len(sequence), surface_residue['Residue Number'] + 4)]
+                res_num = int(surface_residue['Residue Number'])
+                pep_seq = sequence[max(0, res_num - 4):min(len(sequence), res_num + 4)]
                 if len(pep_seq) < 8:
                     pep_seq = sequence[i:i+8] if len(sequence) >= i+8 else sequence[-8:]
                 
@@ -113,7 +114,8 @@ def suggest_with_anthropic(sequence: str, residues: List[Dict], surface_df: Opti
     for i in range(num_peptides):
         if surface_df is not None and not surface_df.empty and i < len(surface_df):
             surface_residue = surface_df.iloc[i]
-            pep_seq = sequence[max(0, surface_residue['Residue Number'] - 4):min(len(sequence), surface_residue['Residue Number'] + 4)]
+            res_num = int(surface_residue['Residue Number'])
+            pep_seq = sequence[max(0, res_num - 4):min(len(sequence), res_num + 4)]
             if len(pep_seq) < 8:
                 pep_seq = sequence[-(i+8):-i] if len(sequence) >= i+8 else sequence[:8]
             
@@ -155,7 +157,8 @@ def suggest_with_groq(sequence: str, residues: List[Dict], surface_df: Optional[
     for i in range(num_peptides):
         if surface_df is not None and not surface_df.empty and i < len(surface_df):
             surface_residue = surface_df.iloc[i]
-            pep_seq = sequence[max(0, surface_residue['Residue Number'] - 4):min(len(sequence), surface_residue['Residue Number'] + 4)]
+            res_num = int(surface_residue['Residue Number'])
+            pep_seq = sequence[max(0, res_num - 4):min(len(sequence), res_num + 4)]
             if len(pep_seq) < 8:
                 pep_seq = sequence[::-1][i:i+8] if len(sequence) >= i+8 else sequence[:8]
             
@@ -197,7 +200,8 @@ def suggest_with_mistral(sequence: str, residues: List[Dict], surface_df: Option
     for i in range(num_peptides):
         if surface_df is not None and not surface_df.empty and i < len(surface_df):
             surface_residue = surface_df.iloc[i]
-            pep_seq = sequence[max(0, surface_residue['Residue Number'] - 4):min(len(sequence), surface_residue['Residue Number'] + 4)]
+            res_num = int(surface_residue['Residue Number'])
+            pep_seq = sequence[max(0, res_num - 4):min(len(sequence), res_num + 4)]
             if len(pep_seq) < 8:
                 pep_seq = sequence[i:i+8][::-1] if len(sequence) >= i+8 else sequence[-8:]
             
