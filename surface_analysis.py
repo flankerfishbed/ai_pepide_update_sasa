@@ -4,52 +4,65 @@ from typing import Dict, Any, List, Tuple
 
 def analyze_surface_residues(pdb_content: str, selected_chain: str = 'A') -> pd.DataFrame:
     """
-    Placeholder for surface residue analysis (SASA-based analysis removed).
-    Returns all residues in the selected chain as 'surface' residues with dummy SASA values.
-    
-    Args:
-        pdb_content (str): PDB file content as string
-        selected_chain (str): Chain ID to analyze (default: 'A')
-    
-    Returns:
-        pd.DataFrame: DataFrame with columns ['Residue Name', 'Residue Number', 'Chain', 'SASA', 'Property']
+    Analyze surface residues using FreeSASA to calculate solvent-accessible surface area (SASA).
+    Only standard amino acids are included.
+    Returns a DataFrame with columns ['Residue Name', 'Residue Number', 'Chain', 'SASA', 'Property']
     """
-    # Simple PDB parsing to extract residues for the selected chain
-    residues = set()
-    for line in pdb_content.splitlines():
-        if line.startswith('ATOM') or line.startswith('HETATM'):
-            chain = line[21].strip()
-            if chain != selected_chain:
-                continue
-            resname = line[17:20].strip()
-            resnum = line[22:26].strip()
-            residues.add((resname, resnum, chain))
-    
-    # Dummy classification and SASA
+    # Write PDB content to a temporary file
+    import tempfile, os
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.pdb', delete=False) as temp_file:
+        temp_file.write(pdb_content)
+        temp_file_path = temp_file.name
+
+    # Standard amino acids (3-letter codes)
+    standard_residues = {
+        'ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE',
+        'LEU', 'LYS', 'MET', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL'
+    }
+    HYDROPHOBIC = {'A', 'V', 'L', 'I', 'M', 'F', 'Y', 'W'}
+    CHARGED = {'D', 'E', 'K', 'R', 'H'}
+
     def classify_residue(residue_name: str) -> str:
-        HYDROPHOBIC = {'A', 'V', 'L', 'I', 'M', 'F', 'Y', 'W'}
-        CHARGED = {'D', 'E', 'K', 'R', 'H'}
         if residue_name[0] in HYDROPHOBIC:
             return "Hydrophobic"
         elif residue_name[0] in CHARGED:
             return "Charged"
         else:
             return "Polar/Other"
-    
-    residues_data = []
-    for resname, resnum, chain in residues:
-        property_type = classify_residue(resname)
-        residues_data.append({
-            'Residue Name': resname,
-            'Residue Number': resnum,
-            'Chain': chain,
-            'SASA': 50.0,  # Dummy value
-            'Property': property_type
-        })
-    df = pd.DataFrame(residues_data)
-    if not df.empty:
-        df = df.sort_values('Residue Number')
-    return df
+
+    try:
+        structure = freesasa.Structure(temp_file_path)
+        result = freesasa.calc(structure)
+        residues_data = []
+        for key, sasa in result.residueAreas().items():
+            if isinstance(key, tuple) and len(key) == 3:
+                chain, resnum, resname = key
+                try:
+                    resnum = int(resnum)
+                except ValueError:
+                    continue
+            else:
+                continue
+            if chain != selected_chain:
+                continue
+            if resname not in standard_residues:
+                continue
+            if sasa > 0.0:
+                property_type = classify_residue(resname)
+                residues_data.append({
+                    'Residue Name': resname,
+                    'Residue Number': resnum,
+                    'Chain': chain,
+                    'SASA': float(sasa),
+                    'Property': property_type
+                })
+        df = pd.DataFrame(residues_data)
+        if not df.empty:
+            df = df.sort_values('Residue Number')
+        return df
+    finally:
+        if os.path.exists(temp_file_path):
+            os.unlink(temp_file_path)
 
 def get_surface_summary(surface_df: pd.DataFrame) -> Dict[str, Any]:
     """
@@ -83,33 +96,33 @@ def get_surface_summary(surface_df: pd.DataFrame) -> Dict[str, Any]:
 def get_exposed_residues_from_pdb(pdb_filepath: str, selected_chain: str = 'A', sasa_threshold: float = 25.0) -> List[Dict[str, Any]]:
     """
     Compute residue-level SASA using FreeSASA and return a list of exposed residues above a threshold.
-    Args:
-        pdb_filepath (str): Path to the PDB file.
-        selected_chain (str): Chain ID to analyze (default: 'A').
-        sasa_threshold (float): Minimum SASA value to consider a residue exposed.
-    Returns:
-        List[Dict[str, Any]]: List of dicts with keys: 'chain', 'residue_number', 'residue_name', 'sasa'
+    Only standard amino acids are included.
     """
+    standard_residues = {
+        'ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE',
+        'LEU', 'LYS', 'MET', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL'
+    }
     structure = freesasa.Structure(pdb_filepath)
     result = freesasa.calc(structure)
     exposed_residues = []
     for key, sasa in result.residueAreas().items():
-        # key is (chain, resnum, resname)
         if isinstance(key, tuple) and len(key) == 3:
             chain, resnum, resname = key
             try:
                 resnum = int(resnum)
             except ValueError:
-                continue  # skip if not a valid integer
+                continue
         else:
             continue
         if chain != selected_chain:
             continue
+        if resname not in standard_residues:
+            continue
         if sasa > sasa_threshold:
             exposed_residues.append({
                 'chain': chain,
-                'residue_number': resnum,  # int
+                'residue_number': resnum,
                 'residue_name': resname,
-                'sasa': float(sasa)        # float
+                'sasa': float(sasa)
             })
     return exposed_residues 
