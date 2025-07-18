@@ -1,4 +1,10 @@
-import freesasa
+try:
+    import freesasa
+except ModuleNotFoundError as exc:
+    raise ImportError(
+        "FreeSASA is required for surface analysis. Install it with `pip install freesasa`."
+    ) from exc
+
 import pandas as pd
 from typing import Dict, Any, List, Tuple
 
