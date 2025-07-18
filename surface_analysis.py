@@ -2,19 +2,18 @@ import freesasa
 import pandas as pd
 from typing import Dict, Any, List, Tuple
 
-def analyze_surface_residues(pdb_content: str, selected_chain: str = 'A') -> pd.DataFrame:
+def analyze_surface_residues(pdb_content: str, selected_chain: str = 'A') -> Tuple[pd.DataFrame, List[str]]:
     """
     Analyze surface residues using FreeSASA to calculate solvent-accessible surface area (SASA).
     Only standard amino acids are included.
     Returns a DataFrame with columns ['Residue Name', 'Residue Number', 'Chain', 'SASA', 'Property']
+    and a list of debug info strings for SASA values.
     """
-    # Write PDB content to a temporary file
     import tempfile, os
     with tempfile.NamedTemporaryFile(mode='w', suffix='.pdb', delete=False) as temp_file:
         temp_file.write(pdb_content)
         temp_file_path = temp_file.name
 
-    # Standard amino acids (3-letter codes)
     standard_residues = {
         'ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE',
         'LEU', 'LYS', 'MET', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL'
@@ -30,14 +29,13 @@ def analyze_surface_residues(pdb_content: str, selected_chain: str = 'A') -> pd.
         else:
             return "Polar/Other"
 
+    debug_info = []
     try:
         structure = freesasa.Structure(temp_file_path)
         result = freesasa.calc(structure)
         residues_data = []
-        print("--- DEBUG: All residues and SASA values (before filtering) ---")
         for key, sasa in result.residueAreas().items():
-            print(f"key={key}, sasa={sasa}")
-        print("--- END DEBUG ---")
+            debug_info.append(f"key={key}, sasa={sasa}")
         for key, sasa in result.residueAreas().items():
             if isinstance(key, tuple) and len(key) == 3:
                 chain, resnum, resname = key
@@ -63,7 +61,7 @@ def analyze_surface_residues(pdb_content: str, selected_chain: str = 'A') -> pd.
         df = pd.DataFrame(residues_data)
         if not df.empty:
             df = df.sort_values('Residue Number')
-        return df
+        return df, debug_info
     finally:
         if os.path.exists(temp_file_path):
             os.unlink(temp_file_path)
