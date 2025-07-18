@@ -8,6 +8,14 @@ def suggest_with_openai(sequence: str, residues: List[Dict], surface_df: Optiona
     # Build enhanced context with surface information
     surface_context = ""
     if surface_df is not None and not surface_df.empty:
+        exposed = (
+            surface_df.to_string(index=False)
+            if len(surface_df) <= 20
+            else surface_df.head(20).to_string(index=False)
+        )
+        if len(surface_df) > 20:
+            exposed += f"\n... and {len(surface_df) - 20} more residues"
+
         surface_context = f"""
 SURFACE ANALYSIS DATA:
 - Total surface residues: {len(surface_df)}
@@ -16,7 +24,7 @@ SURFACE ANALYSIS DATA:
 - Polar surface residues: {len(surface_df[surface_df['Property'] == 'Polar/Other'])}
 
 Surface-exposed residues (SASA > 25 Å²):
-{surface_df.to_string(index=False) if len(surface_df) <= 20 else surface_df.head(20).to_string(index=False) + f"\n... and {len(surface_df) - 20} more residues"}
+{exposed}
 """
     
     # Enhanced prompt with surface analysis
