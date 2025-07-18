@@ -34,6 +34,10 @@ def analyze_surface_residues(pdb_content: str, selected_chain: str = 'A') -> pd.
         structure = freesasa.Structure(temp_file_path)
         result = freesasa.calc(structure)
         residues_data = []
+        print("--- DEBUG: All residues and SASA values (before filtering) ---")
+        for key, sasa in result.residueAreas().items():
+            print(f"key={key}, sasa={sasa}")
+        print("--- END DEBUG ---")
         for key, sasa in result.residueAreas().items():
             if isinstance(key, tuple) and len(key) == 3:
                 chain, resnum, resname = key
