@@ -34,30 +34,28 @@ def analyze_surface_residues(pdb_content: str, selected_chain: str = 'A') -> Tup
         structure = freesasa.Structure(temp_file_path)
         result = freesasa.calc(structure)
         residues_data = []
-        for key, sasa in result.residueAreas().items():
-            debug_info.append(f"key={key}, sasa={sasa}")
-        for key, sasa in result.residueAreas().items():
-            if isinstance(key, tuple) and len(key) == 3:
-                chain, resnum, resname = key
+        residue_areas = result.residueAreas()
+        chain_residues = residue_areas.get(selected_chain, {})
+        if not chain_residues:
+            debug_info.append(f"chain {selected_chain} not found")
+        for resnum, area in chain_residues.items():
                 try:
-                    resnum = int(resnum)
+                    resnum_int = int(resnum)
                 except ValueError:
                     continue
-            else:
-                continue
-            if chain != selected_chain:
-                continue
-            if resname not in standard_residues:
-                continue
-            if sasa > 0.0:
-                property_type = classify_residue(resname)
-                residues_data.append({
-                    'Residue Name': resname,
-                    'Residue Number': resnum,
-                    'Chain': chain,
-                    'SASA': float(sasa),
-                    'Property': property_type
-                })
+                resname = area.residueType
+                sasa = area.total
+                if resname not in standard_residues:
+                    continue
+                if sasa > 0.0:
+                    property_type = classify_residue(resname)
+                    residues_data.append({
+                        'Residue Name': resname,
+                        'Residue Number': resnum_int,
+                        'Chain': selected_chain,
+                        'SASA': float(sasa),
+                        'Property': property_type
+                    })
         df = pd.DataFrame(residues_data)
         if not df.empty:
             df = df.sort_values('Residue Number')
@@ -107,24 +105,21 @@ def get_exposed_residues_from_pdb(pdb_filepath: str, selected_chain: str = 'A', 
     structure = freesasa.Structure(pdb_filepath)
     result = freesasa.calc(structure)
     exposed_residues = []
-    for key, sasa in result.residueAreas().items():
-        if isinstance(key, tuple) and len(key) == 3:
-            chain, resnum, resname = key
+    chain_residues = result.residueAreas().get(selected_chain, {})
+    for resnum, area in chain_residues.items():
             try:
-                resnum = int(resnum)
+                resnum_int = int(resnum)
             except ValueError:
                 continue
-        else:
-            continue
-        if chain != selected_chain:
-            continue
-        if resname not in standard_residues:
-            continue
-        if sasa > sasa_threshold:
-            exposed_residues.append({
-                'chain': chain,
-                'residue_number': resnum,
-                'residue_name': resname,
-                'sasa': float(sasa)
-            })
+            resname = area.residueType
+            sasa = area.total
+            if resname not in standard_residues:
+                continue
+            if sasa > sasa_threshold:
+                exposed_residues.append({
+                    'chain': selected_chain,
+                    'residue_number': resnum_int,
+                    'residue_name': resname,
+                    'sasa': float(sasa)
+                })
     return exposed_residues 
