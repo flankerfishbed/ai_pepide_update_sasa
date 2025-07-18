@@ -43,7 +43,7 @@ if api_key:
                     st.subheader("🔬 Surface Analysis")
                     with st.spinner("Analyzing surface residues..."):
                         try:
-                            surface_df = analyze_surface_residues(pdb_content, chain_id)
+                            surface_df, debug_info = analyze_surface_residues(pdb_content, chain_id)
                             surface_summary = get_surface_summary(surface_df)
                             
                             # Display summary
